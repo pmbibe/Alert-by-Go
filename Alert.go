@@ -5,7 +5,9 @@ import (
 	"net/http"
 	_"log"
 	"os/exec"
-	"os"
+	_"os"
+	// "strings"
+	// "strconv"
 )
 var lastStatus uint
 
@@ -32,21 +34,25 @@ func checkServerJIRA(url string) {
 }
 
 func checkServiceRunning(service string) {
-	// serviceName := "./exitCode.sh " + service
-	StatusCode := exec.Cmd{
-		Path: "./exitCode.sh",
-		Args: []string{"./exitCode.sh" ,service},
-		Stdout: os.Stdout,
-		Stderr: os.Stdout,
+	serviceName := "./exitCode.sh " + service + " ;echo $?"
+	StatusCode := exec.Command("sh", "-c", serviceName)
+	statusCode, _ := StatusCode.Output()
+	sttCode := string(statusCode)
+	// int_Code, _ := strconv.ParseUint(sttCode, 10, 32)
+	if sttCode == "0\n" {
+		fmt.Print("OK")
+	} else {
+		fmt.Print("NOT OK")
 	}
-	output, _ := StatusCode.Output()
-	fmt.Println(output)
+
+
 
 	}
 
 
 func main(){
-	checkServiceRunning("nginx")
+	// checkServiceRunning("nginx")
+	checkServiceRunning("httpd")
 	// lastStatus == 200
 	// for {
 	// checkServerJIRA("http://192.168.141.204/")
