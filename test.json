@@ -1,0 +1,6 @@
+[{
+    "nameServer": "192.168.141.209",
+    "service": [
+        "nginx"
+    ]
+}]
