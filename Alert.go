@@ -1,83 +1,64 @@
 package main
-
-import (
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
+import(
+	_"fmt"
 	"log"
-	"net/http"
+	"database/sql"
 	"os/exec"
+	_ "github.com/go-sql-driver/mysql"
 )
 
-var lastStatusJIRA uint
+}
+func connecttoDB(user,password,hostname,port,database string ) string {
+	return user +":"+password +"@" + "tcp(" + hostname + ":" +port +")/"+ database
 
-func checkServerJIRA(url string) {
-
-	resp, err := http.Get(url)
-	defer func() {
-		if r := recover(); r != nil && (lastStatusJIRA == 200) {
-			fmt.Println("OK -> CRITICAL")
-			lastStatusJIRA = 404
-		}
-	}()
-
-	if err != nil {
-		panic("CHECK YOUR SERVER NOW")
-	}
-	defer resp.Body.Close()
-	if (resp.StatusCode == 200) && (lastStatusJIRA != 200) {
-		fmt.Println("CRITICAL -> OK")
-		lastStatusJIRA = 200
-	}
 }
 
-var lastStatusService uint
-
-func checkServiceRunning(service string, server string) {
+func changeStatustoOK(service string, server string) string {
+	return "UPDATE monitor SET statusCode = 0 where Hostname = '" + server + "' AND Service = '" + service +"'"
+	
+}
+func changeStatustoFail(service string, server string) string {
+	return "UPDATE monitor SET statusCode = 1 where Hostname = '" + server + "' AND Service = '" + service +"'"
+	
+}
+func connect() *sql.DB {
+	db, _ := sql.Open("mysql", connecttoDB("root","minhduc7b","192.168.141.204","3306","monitor_byGo"))
+	return db
+}
+func checkServiceRunning(service string, server string, lastStatusService uint, db *sql.DB) {
 	serviceName := "./exitCode.sh " + service + " " + server + " ;echo $?"
 	StatusCode := exec.Command("sh", "-c", serviceName)
 	statusCode, _ := StatusCode.Output()
 	sttCode := string(statusCode)
 	if sttCode == "0\n" && (lastStatusService != 0) {
-		log.Print("Service is running")
-		lastStatusService = 0
+		log.Printf("Service %s on %s: Dead -> Running", service,server)
+		slect, _ :=db.Query(changeStatustoOK(service,server))
+		defer slect.Close()
 	} else if sttCode != "0\n" && (lastStatusService != 1) {
-		log.Print("Service is Dead")
-		lastStatusService = 1
+		log.Printf("Service %s on %s: Running ->  Dead", service,server)
+		slect, _ :=db.Query(changeStatustoFail(service,server))
+		defer slect.Close()
 	}
 
 }
 
-// func openFiletoReadService() {
+func main(){
 
-// }
-func openFiletoReadService() {
-	type Server struct {
-		NAMESERVER string
-		SERVICE    []string
-	}
-	data, err := ioutil.ReadFile("test.json")
-	if err != nil {
-		fmt.Print(err)
-	}
-
-	var obj []Server
-	err = json.Unmarshal(data, &obj)
-	if err != nil {
-		fmt.Println("error:", err)
-	}
-	for i := 0; i < len(obj); i++ {
-		for j := 0; j < len(obj[i].SERVICE); j++ {
-			checkServiceRunning(obj[i].SERVICE[j], obj[i].NAMESERVER)
-		}
-
-	}
-
+db := connect()
+defer db.Close()
+for {
+slect, _ := db.Query("SELECT * FROM monitor")
+defer slect.Close()
+type Tag struct {
+	HOSTNAME string
+	SERVICE string
+	STATUSCODE uint
+}
+for slect.Next(){
+	var tag Tag
+	_ = slect.Scan(&tag.HOSTNAME,&tag.SERVICE,&tag.STATUSCODE)
+	checkServiceRunning(tag.SERVICE, tag.HOSTNAME, tag.STATUSCODE, db)
+	
+}
 }
 
-func main() {
-	for {
-		openFiletoReadService()
-	}
-
-}
