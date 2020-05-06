@@ -1,2 +1,2 @@
 #!/bin/bash
-service $1 status > /dev/null
+ssh root@$2 service $1 status > /dev/null
