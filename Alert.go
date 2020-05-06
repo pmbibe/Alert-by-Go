@@ -5,7 +5,38 @@ import(
 	"database/sql"
 	"os/exec"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-telegram-bot-api/telegram-bot-api"
 )
+
+func startBOT() (tgbotapi.UpdatesChannel,*tgbotapi.BotAPI )  {
+	bot, err := tgbotapi.NewBotAPI("1153037633:AAHp5oGyFvTncdN_9hkhoNyEQpuM4cwYnns")
+	if err != nil {
+		log.Panic(err)
+	}
+	bot.Debug = true
+	log.Printf("Authorized on account %s", bot.Self.UserName)
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = 60
+	updates, err := bot.GetUpdatesChan(u)
+	return updates, bot
+}
+func sendMsg(Msg string) {
+
+	updates, bot := startBOT()
+	for update := range updates {
+		if update.Message == nil {
+			continue
+		}
+		if update.Message.Chat.ID == 817269876 {
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
+				msg.Text = Msg
+			bot.Send(msg)
+		}
+
+		}
+
+
+	}
 
 func checkServiceRunning(service string, server string, lastStatusService uint, db *sql.DB) {
 	serviceName := "./exitCode.sh " + service + " " + server + " ;echo $?"
@@ -13,11 +44,13 @@ func checkServiceRunning(service string, server string, lastStatusService uint, 
 	statusCode, _ := StatusCode.Output()
 	sttCode := string(statusCode)
 	if sttCode == "0\n" && (lastStatusService != 0) {
-		log.Print("Service %s on %s is Running", service,server)
+		log.Printf("Service %s on %s is Running", service,server)
+		sendMsg("Service " + service + " on " + service + " is Dead -> Running")
 		slect, _ :=db.Query(changeStatustoOK(service,server))
 		defer slect.Close()
 	} else if sttCode != "0\n" && (lastStatusService != 1) {
-		log.Print("Service %s on %s is Dead", service,server)
+		log.Printf("Service %s on %s is Dead", service,server)
+		sendMsg("Service " + service + " on " + service + " is Running -> Dead")
 		slect, _ :=db.Query(changeStatustoFail(service,server))
 		defer slect.Close()
 	}
